@@ -15,32 +15,33 @@
 
 namespace async {
 //------------------------------------------------------------------------------
+/// Для синхронизации для разнообразия решил использовать не мьютекс, а спинлок
 class SpinLock
 {
   std::atomic_flag locked = ATOMIC_FLAG_INIT;
 public:
+  /// заблокировать
   void lock() { while ( locked.test_and_set(std::memory_order_acquire) ) { ; } }
+  /// разблакировать
   void unlock() { locked.clear(std::memory_order_release); }
 };
 //------------------------------------------------------------------------------
-static SpinLock  std_cout_spinlock;
-
+/// Вывод в стандартный выход
 struct MyCout
 {
   /// Вывести данные
-  MyCout& operator << (const std::string &cmd)
-  {
+  MyCout& operator << (const std::string &cmd) {
     std::cout << cmd;
     return *this;
   }
 };
 
+/// Вывод в файл
 struct MyFile
 {
   /// Конструктор
   /// @param time_str время в виде строки
-  MyFile(std::string time_str, std::string suffix)
-  {
+  MyFile(std::string time_str, std::string suffix) {
     std::string name = std::string("bulk-") + suffix +
       std::string("-") + time_str + std::string(".log");
     file.open(name);
@@ -48,18 +49,18 @@ struct MyFile
   /// Деструктор
   ~MyFile() { file.close(); }
   /// вывести данные
-  MyFile& operator << (const std::string &cmd)
-  {
+  MyFile& operator << (const std::string &cmd) {
     file << cmd;
-    file.flush();
     return *this;
   }
-
 private:
+  /// Файл
   std::ofstream file;
 };
 
 //------------------------------------------------------------------------------
+static SpinLock  std_cout_spinlock; ///< для вывода в стандартный выход
+
 /// Команды в блоке
 struct BulkCommands
 {
@@ -138,15 +139,13 @@ struct BulkCommands
   }
 
 private:
-  const std::size_t N;  
-  std::size_t braces{0};
+  const std::size_t N;                 ///< количество команд в блоке
+  std::size_t braces{0};               ///< счетчик на скобки
   std::string m_time;                  ///< время первой команды
   std::list<std::string> m_commands;   ///< команды
 };
-//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-
 static std::set<BulkCommands*> bulks;
 static SpinLock  bulk_spinlock;
 
